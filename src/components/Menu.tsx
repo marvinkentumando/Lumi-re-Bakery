@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Plus } from 'lucide-react';
+import { useCart } from '@/src/context/CartContext';
 
 interface MenuItem {
   id: string;
@@ -38,6 +39,8 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export default function Menu() {
+  const { addToCart } = useCart();
+
   return (
     <section id="menu" className="py-24 bg-white">
       <div className="max-w-[1440px] mx-auto px-6">
@@ -50,11 +53,11 @@ export default function Menu() {
           </div>
           <div className="flex gap-2 text-xs font-medium text-slate-400">
             <span>All Items</span>
-            <span>/</span>
+            <span aria-hidden="true">·</span>
             <span className="text-slate-900">Bread</span>
-            <span>/</span>
+            <span aria-hidden="true">·</span>
             <span>Pastries</span>
-            <span>/</span>
+            <span aria-hidden="true">·</span>
             <span>Sweets</span>
           </div>
         </div>
@@ -64,7 +67,7 @@ export default function Menu() {
             <motion.div
               key={item.id}
               whileHover={{ y: -4 }}
-              className="group cursor-pointer"
+              className="group"
             >
               <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-50 mb-6">
                 <img
@@ -73,7 +76,10 @@ export default function Menu() {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   referrerPolicy="no-referrer"
                 />
-                <button className="absolute bottom-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                <button 
+                  onClick={() => addToCart({ id: item.id, name: item.name, price: item.price, image: item.image })}
+                  className="absolute bottom-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-white active:scale-95"
+                >
                   <Plus size={20} className="text-slate-900" />
                 </button>
               </div>

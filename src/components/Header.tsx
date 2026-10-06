@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { auth, googleProvider } from '@/src/lib/firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { ShoppingBag, Menu as MenuIcon, X } from 'lucide-react';
+import { useCart } from '@/src/context/CartContext';
 
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { totalItems, setIsOpen } = useCart();
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => {
@@ -53,8 +55,16 @@ export default function Header() {
 
         {/* Zone 3: Actions */}
         <div className="flex items-center gap-4">
-          <button className="p-2 text-slate-600 hover:text-slate-900 transition-colors">
+          <button 
+            onClick={() => setIsOpen(true)}
+            className="p-2 text-slate-600 hover:text-slate-900 transition-colors relative"
+          >
             <ShoppingBag size={20} />
+            {totalItems > 0 && (
+              <span className="absolute top-0 right-0 w-4 h-4 bg-slate-900 text-[10px] font-bold text-white flex items-center justify-center rounded-full border-2 border-white">
+                {totalItems}
+              </span>
+            )}
           </button>
           
           {user ? (
