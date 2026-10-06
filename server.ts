@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 
@@ -22,23 +23,9 @@ async function startServer() {
     app.get('*', async (req, res, next) => {
       const url = req.originalUrl;
       try {
-        // Always serve index.html for SPA
-        let template = await vite.transformIndexHtml(url, `
-          <!doctype html>
-          <html lang="en">
-            <head>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-              <title>Lumière Bakery – Artisanal Wild Yeast & Time</title>
-              <meta name="description" content="Artisanal boutique bakery featuring organic sourdough, hand-laminated pastries, and curated workshops." />
-              <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-            </head>
-            <body>
-              <div id="root"></div>
-              <script type="module" src="/src/main.tsx"></script>
-            </body>
-          </html>
-        `);
+        const indexPath = path.resolve(__dirname, 'index.html');
+        let template = fs.readFileSync(indexPath, 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
         res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
@@ -46,7 +33,7 @@ async function startServer() {
       }
     });
   } else {
-    // In production, serve static files
+    // In production, serve static files from dist
     app.use(express.static(path.join(__dirname, 'dist')));
     app.use('/src/assets/images', express.static(path.join(__dirname, 'src/assets/images')));
     app.get('*', (req, res) => {

@@ -26,11 +26,31 @@
         "date": { "type": "string", "format": "date" },
         "time": { "type": "string" },
         "guests": { "type": "number", "minimum": 1, "maximum": 20 },
-        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "completed", "cancelled"] },
         "notes": { "type": "string", "maxLength": 1000 },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "customerName", "customerEmail", "date", "time", "guests", "status", "createdAt"]
+    },
+    "Order": {
+      "title": "Bakery Order",
+      "description": "An online order for bakery item pickup.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "customerEmail": { "type": "string", "format": "email" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "total": { "type": "number" },
+        "pickupTime": { "type": "string" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["received", "preparing", "ready", "completed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerName", "customerEmail", "items", "subtotal", "tax", "total", "pickupTime", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -41,6 +61,10 @@
     "bookings": {
       "schema": "Booking",
       "description": "Collection of customer bookings."
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Collection of customer bakery pickup orders."
     }
   }
 }

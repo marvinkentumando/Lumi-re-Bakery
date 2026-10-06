@@ -1,14 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Default deny
+    // 1. Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Ping check for testConnection
+    match /test/{docId} {
+      allow read: if true;
     }
 
     // Helpers
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'tumando.marvinken@dnsc.edu.ph';
     }
     
     function isValidId(id) {
@@ -24,13 +33,13 @@ service cloud.firestore {
     }
 
     function isEmail(email) {
-      return email is string && email.matches('^[^@]+@[^@]+\\.[^@]+$');
+      return email is string && email.size() <= 120 && email.matches('^[^@]+@[^@]+\\.[^@]+$');
     }
 
     // 2. Menu Items (Public Read, Admin Write)
     match /menu_items/{itemId} {
       allow read: if true;
-      allow write: if false; // Only manageable via console for this demo
+      allow write: if isAdmin();
     }
 
     // 3. Bookings
@@ -40,30 +49,63 @@ service cloud.firestore {
              isValidId(data.id) &&
              data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
              isEmail(data.customerEmail) &&
-             data.date is string && // Simple date format check
-             data.time is string &&
+             data.date is string && data.date.size() <= 20 &&
+             data.time is string && data.time.size() <= 20 &&
              data.guests is number && data.guests >= 1 && data.guests <= 20 &&
-             data.status in ['pending', 'confirmed', 'cancelled'] &&
-             (data.notes == null || (data.notes is string && data.notes.size() <= 1000));
+             data.status in ['pending', 'confirmed', 'completed', 'cancelled'] &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 1000)) &&
+             (!('userId' in data) || data.userId == null || (data.userId is string && isValidId(data.userId)));
     }
 
     match /bookings/{bookingId} {
       allow create: if isValidBooking(incoming()) && 
                        incoming().status == 'pending' &&
                        incoming().createdAt == request.time &&
-                       (!incoming().keys().contains('userId') || incoming().userId == request.auth.uid);
+                       (!('userId' in incoming()) || incoming().userId == null || (isSignedIn() && incoming().userId == request.auth.uid));
       
-      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
-                    (!isSignedIn() && resource.data.customerEmail == request.query.email); // Simple lookup for guest
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       
-      allow update: if isSignedIn() && 
-                       resource.data.userId == request.auth.uid &&
+      allow update: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid)) && 
                        isValidBooking(incoming()) &&
                        incoming().id == existing().id &&
                        incoming().createdAt == existing().createdAt &&
                        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'guests', 'date', 'time']);
       
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // 4. Orders (Online Pickup Bag Orders)
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'customerName', 'customerEmail', 'items', 'subtotal', 'tax', 'total', 'pickupTime', 'status', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'userId', 'customerName', 'customerEmail', 'items', 'subtotal', 'tax', 'total', 'pickupTime', 'notes', 'status', 'createdAt']) &&
+             isValidId(data.id) &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+             isEmail(data.customerEmail) &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+             data.subtotal is number && data.subtotal >= 0 &&
+             data.tax is number && data.tax >= 0 &&
+             data.total is number && data.total >= 0 &&
+             data.pickupTime is string && data.pickupTime.size() <= 50 &&
+             data.status in ['received', 'preparing', 'ready', 'completed', 'cancelled'] &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 1000)) &&
+             (!('userId' in data) || data.userId == null || (data.userId is string && isValidId(data.userId)));
+    }
+
+    match /orders/{orderId} {
+      allow create: if isValidOrder(incoming()) &&
+                       incoming().status == 'received' &&
+                       incoming().createdAt == request.time &&
+                       (!('userId' in incoming()) || incoming().userId == null || (isSignedIn() && incoming().userId == request.auth.uid));
+      
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      allow update: if (isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid)) &&
+                       isValidOrder(incoming()) &&
+                       incoming().id == existing().id &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes']);
+
+      allow delete: if isAdmin();
     }
   }
 }
