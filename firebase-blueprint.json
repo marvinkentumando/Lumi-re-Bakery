@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "MenuItem": {
+      "title": "Menu Item",
+      "description": "An item on the bakery menu.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "price": { "type": "number" },
+        "category": { "type": "string", "enum": ["Bread", "Pastry", "Cake", "Workshop"] },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "category"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "A table or workshop booking.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "customerEmail": { "type": "string", "format": "email" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "guests": { "type": "number", "minimum": 1, "maximum": 20 },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerName", "customerEmail", "date", "time", "guests", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "menu_items": {
+      "schema": "MenuItem",
+      "description": "Global collection of bakery menu items."
+    },
+    "bookings": {
+      "schema": "Booking",
+      "description": "Collection of customer bookings."
+    }
+  }
+}

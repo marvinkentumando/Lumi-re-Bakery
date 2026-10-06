@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isEmail(email) {
+      return email is string && email.matches('^[^@]+@[^@]+\\.[^@]+$');
+    }
+
+    // 2. Menu Items (Public Read, Admin Write)
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if false; // Only manageable via console for this demo
+    }
+
+    // 3. Bookings
+    function isValidBooking(data) {
+      return data.keys().hasAll(['id', 'customerName', 'customerEmail', 'date', 'time', 'guests', 'status', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'userId', 'customerName', 'customerEmail', 'date', 'time', 'guests', 'status', 'notes', 'createdAt']) &&
+             isValidId(data.id) &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 100 &&
+             isEmail(data.customerEmail) &&
+             data.date is string && // Simple date format check
+             data.time is string &&
+             data.guests is number && data.guests >= 1 && data.guests <= 20 &&
+             data.status in ['pending', 'confirmed', 'cancelled'] &&
+             (data.notes == null || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    match /bookings/{bookingId} {
+      allow create: if isValidBooking(incoming()) && 
+                       incoming().status == 'pending' &&
+                       incoming().createdAt == request.time &&
+                       (!incoming().keys().contains('userId') || incoming().userId == request.auth.uid);
+      
+      allow read: if (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                    (!isSignedIn() && resource.data.customerEmail == request.query.email); // Simple lookup for guest
+      
+      allow update: if isSignedIn() && 
+                       resource.data.userId == request.auth.uid &&
+                       isValidBooking(incoming()) &&
+                       incoming().id == existing().id &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'guests', 'date', 'time']);
+      
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
